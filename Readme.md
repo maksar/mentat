@@ -28,7 +28,7 @@ Workflow consists many steps, each of which configured with a threshold value. T
 
 ![](https://raw.githubusercontent.com/maksar/mentat/master/images/animation.gif)
 
-Here is on possible implementation of described workflow (full source code can be found here!!!):
+Here is on possible implementation of described workflow (full source code can be found on [GitHub](https://github.com/maksar/mentat/)):
 ```ruby
 class Workflow
   def initialize(steps_config)
@@ -100,3 +100,26 @@ describe Workflow do
   end
 end
 ```
+
+Running spec is successful indeed. Moreover, `simplecov` claims to have 100% code coverade!
+```
+➜  mentat git:(master) rspec version_1/workflow_spec.rb
+
+Workflow
+  works in real world scenario
+
+Finished in 0.00181 seconds (files took 0.13433 seconds to load)
+1 example, 0 failures
+
+Coverage report generated for RSpec to /Users/maksar/projects/mentat/coverage. 40 / 40 LOC (100.0%) covered.
+```
+
+![](https://raw.githubusercontent.com/maksar/mentat/master/images/coverage.png)
+
+This is where story might end for mediocre developer. One would think, that since coverage indicates we are good, there is no more work to do left. Well, lets not hurry up, mutant to the rescue!
+
+```
+➜  mentat git:(master) mutant -I . -r version_1/workflow_spec.rb --use rspec 'Workflow'
+```
+
+[![asciicast](https://asciinema.org/a/31217.png)](https://asciinema.org/a/31217)
