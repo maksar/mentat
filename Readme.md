@@ -5,13 +5,13 @@ Mutation testing technic is based on quite simple idea. Say, you have bunch of c
 Whoa, can you say, but we have code coverage tools! Yes, there are large amount of test coverage tools out there. But most of them collect statistics only about lines coverage (C0 coverage). Basically, it means whether particular line of source code was executed or not.
 
 Its hard to cover all possible program states (actually, its not possible in general case). Consider function `next_char`:
-```
+```ruby
 def next_char(char)
   char.ord.next.chr
 end
 ```
 Quite simple function accepting character and returning next one in ASCII table. To get full C2 coverage, it'd needed to verify it works for every possible char out there (from 0 to 255) along with one more edge case for `"\xFF"`. Slight change to `next_char` function makes it impossible to test:
-```
+```ruby
 def next_char(char, step)
   (char.ord + step).chr
 end
@@ -26,10 +26,10 @@ Enough with theory, as programmers we like to have our hands dirty with code. As
 Lets write example program to automate simple workflow business process:
 Workflow consists many steps, each of which configured with a threshold value. To proceed to the next step of the workflow, its needed to get number of votes from applicable (according to the voting permissions) users. If a user has enough permissions, its possible for him to force  skip one workflow step. Every user with voting permission can veto current step voting process. Workflow will continue from beginning of previous step. Inactive users cannot vote or reject. User can only vote once on same step.
 
-IMAGE GOES HERE
+![](https://raw.githubusercontent.com/maksar/mentat/master/images/animation.gif)
 
 Here is on possible implementation of described workflow (full source code can be found here!!!):
-```
+```ruby
 class Workflow
   def initialize(steps_config)
     @steps_config = steps_config
@@ -77,7 +77,7 @@ end
 
 It was written without any tests in mind, but looks robust. All required business features are there: inactive users, duplicate votes, force approves, etc. So, lets tests it! It will be a good idea to actually bring example from diagram to existence.
 
-```
+```ruby
 describe Workflow do
   subject { Workflow.new([3, 2, 2]) }
   it 'works in real world scenario' do
@@ -100,4 +100,3 @@ describe Workflow do
   end
 end
 ```
-
