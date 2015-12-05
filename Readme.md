@@ -415,3 +415,9 @@ Mutations/s:     36.89
 Coverage:        100.00%
 Expected:        100.00%
 ```
+
+I want to be clear here, 100% mutation coverage does not mean your code implements business feature correctly, it is also does not mean you have correctly satisfies your test cases. All it means: as far as mutant can tell, your test suite has very good branch coverage.
+
+As a tool, mutant can be used for many tasks: as a guide to write better tests (it highlights code paths which were never executed), it can highlight tests, which are not contributing anymore into branch coverage (deleting such test will still show 100% mutation coverage).
+
+I am personally don't always use mutant in my day-to-day development job, and I'm not convincing you must. It helps to better understand and improve your code and coding skills.
