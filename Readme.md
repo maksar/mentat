@@ -123,3 +123,295 @@ This is where story might end for mediocre developer. One would think, that sinc
 ```
 
 [![asciicast](https://asciinema.org/a/31217.png)](https://asciinema.org/a/31217)
+
+What? Only 64.71%? It sounds very... sobering. Lets see what just happened. We specified mutation target ('Workflow' string in the command line), mutant went over class and detected 7 mutation subjects. For each subject, its constructed AST (Abstract Syntax Tree) of the code and tried to apply different 'mutations' to it. Mutations are small code changes, for example: flipping condition to be opposite, removing line of code, changing constant value, etc. Mutations are easier to deal with working with AST instead of plain text, thats why mutant parses your code, applies mutation (new Mutant is born) and then converts AST back to code, to lets rspec execute tests agains it (attempt to kill the Mutant). If all tests are passed, Mutant remains alive. Think about it. Someone just deleted whole line from your code, and tests are still passing... That basically means, that test suite does not contain enough examples to cover all execution branches.
+
+Ok, on the screenshot above, mutant claims, that if we'd removed condition check inside `vote` method, tests will continue to work. Hard to believe, lets verify:
+```ruby
+  def vote(actor)
+    @votes[@current_step] << actor
+    increment
+  end
+```
+
+Code is changed, running specs:
+```
+➜  mentat git:(master) rspec version_1/workflow_spec.rb -f p
+.
+
+Finished in 0.00144 seconds (files took 0.08017 seconds to load)
+1 example, 0 failures
+```
+
+Zero failures! It surprises me every time... After staring at other alive Mutants I finally realized how stupid I was, thinking one test case proves correctness or can protect me from regressions. Ok, enough being dumb, we can do better. This time I tried to write very extensive test suite, covering every business feature one-by-one:
+```ruby
+describe Workflow do
+  context 'empty workflow' do
+    subject { Workflow.new([]) }
+    it('should be already finished') { expect(subject).to be_finished }
+    ALL.each do |permission|
+      it("should remain finished after #{permission} reject action") do
+        expect { subject.reject(User.new(permission)) }.not_to change(subject, :finished?)
+      end
+      it("should remain finished after #{permission} approve action") do
+        expect { subject.approve(User.new(permission)) }.not_to change(subject, :finished?)
+      end
+    end
+  end
+  context 'workflow from single step' do
+    [0, 1].each do |votes|
+      context "where step requires #{votes} votes" do
+        subject { Workflow.new([votes]) }
+        it('should not be initially finished') { expect(subject).not_to be_finished }
+        it('should not be finished after approve from incapable actor') do
+          expect { subject.approve(User.new([NONE])) }.not_to change(subject, :finished?)
+        end
+        ACTIONABLE.each do |permission|
+          it("should be finished after #{permission} approve action") do
+            expect { subject.approve(User.new([permission])) }.to change(subject, :finished?)
+          end
+          it("should not be finished after inactive actors #{permission} actions") do
+            expect { subject.approve(User.new([permission], false)) }.not_to change(subject, :finished?)
+          end
+        end
+      end
+    end
+    context 'where step requires two votes' do
+      subject { Workflow.new([2]) }
+      it('should be finished only after first force action') do
+        expect { subject.approve(User.new([FORCE])) }.to change(subject, :finished?)
+      end
+      it('should be finished only after second vote action') do
+        expect { subject.approve(User.new([VOTE])) }.not_to change(subject, :finished?)
+        expect { subject.approve(User.new([VOTE])) }.to change(subject, :finished?)
+      end
+      it('should not be finished after subsequent vote action of the same actor') do
+        subject.approve(actor = User.new([VOTE]))
+        expect { subject.approve(actor) }.not_to change(subject, :finished?)
+      end
+      ACTIONABLE.each do |permission|
+        it("should be able to reset votes by reject action from #{permission} actor") do
+          subject.approve(User.new([VOTE]))
+          subject.reject(User.new([permission]))
+          expect { subject.approve(User.new([VOTE])) }.not_to change(subject, :finished?)
+          expect { subject.approve(User.new([VOTE])) }.to change(subject, :finished?)
+        end
+        it("inactive #{permission} actor cannot affect voting process") do
+          subject.approve(User.new([VOTE]))
+          subject.reject(User.new([permission], false))
+          expect { subject.approve(User.new([VOTE])) }.to change(subject, :finished?)
+        end
+        it('actor without permissions cannot reject') do
+          subject.approve(User.new([VOTE]))
+          subject.reject(User.new([NONE]))
+          expect { subject.approve(User.new([VOTE])) }.to change(subject, :finished?)
+        end
+      end
+    end
+  end
+
+  context 'Workflow from three steps' do
+    subject { Workflow.new([2, 2, 2]) }
+    it('reject should erase votes from current and previous step') do
+      subject.approve(User.new([FORCE]))
+      subject.approve(User.new([VOTE, VOTE]))
+      subject.approve(User.new([VOTE, VOTE]))
+      subject.reject(User.new([VOTE, VOTE, VOTE]))
+      expect { subject.approve(User.new([FORCE, FORCE, FORCE])) }.not_to change(subject, :finished?)
+      expect { subject.approve(User.new([FORCE, FORCE, FORCE])) }.to change(subject, :finished?)
+    end
+  end
+end
+```
+
+Lets run our ~~enemy~~friend mutant once again:
+
+[![asciicast](https://asciinema.org/a/31226.png)](https://asciinema.org/a/31226)
+
+Much better this time, 91.33% But not perfect, lets see why:
+```diff
+ def vote(actor)
+-  @votes[@current_step] << actor
++  @votes.fetch(@current_step) << actor
+   if (@votes[@current_step].size >= @steps_config[@current_step])
+     increment
+   end
+ end ```
+This time, one of the mutant's complains was about using `.fetch` method instead of just `[]` accessor. You might think its not a big of a deal, but it worth too think deeper. Difference between `[]` and `fetch` semantic is in behavior on absent values: `[]` will silently return 'nil', where is `fetch` will raise `KeyError` error. So, instead of just substituting hash accessors in our code to more strict version, lets think what mutant is actually trying to tell us... His message is: there might be a problem with error handling in our code or our test suite does not have a case, forcing our code to supper from `NoMethodError` on `nil` values.
+
+Ok, lets try to write one:
+```ruby
+it('should not raise error on inconsistent configuration') do
+  expect { Workflow.new([]).approve(User.new([VOTE])) }.not_to raise_error
+end
+```
+If predictively fails, old good `NotMethodError`:
+```
+Workflow
+  empty workflow
+    should not raise error on inconsistent configuration (FAILED - 1)
+
+Failures:
+
+  1) Workflow empty workflow should not raise error on inconsistent configuration
+     Failure/Error: expect { Workflow.new([]).approve(User.new([VOTE])) }.not_to raise_error
+
+       expected no Exception, got #<NoMethodError: undefined method `<<' for nil:NilClass> with backtrace:
+         # ./version_2/workflow.rb:36:in `vote'
+         # ./version_2/workflow.rb:15:in `approve'
+         # ./version_2/workflow_spec.rb:9:in `block (4 levels) in <top (required)>'
+         # ./version_2/workflow_spec.rb:9:in `block (3 levels) in <top (required)>'
+     # ./version_2/workflow_spec.rb:9:in `block (3 levels) in <top (required)>'
+
+Finished in 0.00971 seconds (files took 0.08025 seconds to load)
+1 example, 1 failure
+```
+
+What we can do about it? Lets actually try to change from mutant. `vote` method now looks like this:
+```ruby
+  def vote(actor)
+    @votes.fetch(@current_step) << actor
+
+    increment if @votes[@current_step].size >= @steps_config[@current_step]
+  end
+```
+
+Running test again gives different `IndexError` error:
+```
+Workflow
+  empty workflow
+    should not raise error on inconsistent configuration (FAILED - 1)
+
+Failures:
+
+  1) Workflow empty workflow should not raise error on inconsistent configuration
+     Failure/Error: expect { Workflow.new([]).approve(User.new([VOTE])) }.not_to raise_error
+
+       expected no Exception, got #<IndexError: index 0 outside of array bounds: 0...0> with backtrace:
+         # ./version_2/workflow.rb:36:in `fetch'
+         # ./version_2/workflow.rb:36:in `vote'
+         # ./version_2/workflow.rb:15:in `approve'
+         # ./version_2/workflow_spec.rb:9:in `block (4 levels) in <top (required)>'
+         # ./version_2/workflow_spec.rb:9:in `block (3 levels) in <top (required)>'
+     # ./version_2/workflow_spec.rb:9:in `block (3 levels) in <top (required)>'
+
+Finished in 0.01043 seconds (files took 0.0895 seconds to load)
+1 example, 1 failure
+```
+
+This one is actually much better to work with. Code blows up exactly where it should, on code, containing accessing error, not later. In previous run it failed on `<<` operator, which, in real world examples, may be far away from the place containing error.
+
+Ok, we learned something useful, lets not waste time on actually fixing it properly. Instead, I'll just pretend, `IndexError` is desired behavior and replace all hash and array accessing methods to be `fetch`:
+```ruby
+subject { Workflow.new([]) }
+it('should raise IndexError on inconsistent configuration') do
+  expect { subject.approve(User.new([VOTE])) }.to raise_error(IndexError)
+end
+```
+
+Running mutant again:
+[![asciicast](https://asciinema.org/a/31227.png)](https://asciinema.org/a/31227)
+
+Better results: 92.95% Whats next?
+```diff
+ def increment
+-  unless finished?
+-    @current_step += 1
+-  end
++  @current_step += 1
+ end
+ ```
+
+Surprising again. I'm convinced in mutant now and will not try to double-check it by myself. It looks like we did not checked the case where somebody attempts to work with finished workflow, which forces `@current_step` variable to increase and `@current_step == @steps_config.size` invariant does not work anymore. Introducing test and fixing code:
+
+ ```ruby
+subject { Workflow.new([2]) }
+it('finished workflow should react on actions') do
+  expect { subject.approve(User.new([FORCE])) }.to change(subject, :finished?).from(false).to(true)
+  expect { subject.approve(User.new([FORCE, FORCE])) }.not_to change(subject, :finished?)
+  expect { subject.reject(User.new([FORCE, FORCE])) }.not_to change(subject, :finished?)
+end
+
+def increment
+  return if finished?
+  @current_step += 1
+end
+
+def decrement
+  return if finished?
+  @votes[@current_step] = Set.new
+  @current_step -= 1 unless @current_step == 0
+  @votes[@current_step] = Set.new
+end
+```
+
+Mutant shows 94.17% of mutation coverage now, complaining to equality semantics:
+```diff
+ def finished?
+-  @current_step == @steps_config.size
++  @current_step.equal?(@steps_config.size)
+ end
+ ```
+
+This is similar to the `[]` vs `fetch` case. Mutant again states, that using more srict code (see here!!!! for details) doesn't brake the tests. In our case it doesn't matter (`equal?` on integers is pretty straight-forward), but in real projects, especially with hashes and custom implementation of `hash` function may lead to problems. So, replacing comparison with `equal?` and running mutant:
+
+```ruby
+def finished?
+  @current_step.equal?(@steps_config.size)
+end
+
+def decrement
+  return if finished?
+  @votes[@current_step] = Set.new
+  @current_step -= 1 unless @current_step.zero?
+  @votes[@current_step] = Set.new
+end
+```
+
+Mutation coverage is now 95.25%, we are close to finish:
+```diff
+ def decrement
+   if finished?
+     return
+   end
+   @votes[@current_step] = Set.new
+   unless @current_step.zero?
+     @current_step -= 1
+   end
+-  @votes[@current_step] = Set.new
+ end
+ ```
+
+This last line is there to reset any votes on the step workflow rejects to. I think our tests only using `FORCE` permission after reject, that is why removing this line does not break the suite. In fact, there is `VOTE` activity after `reject` action in `should be able to reset votes by reject action from #{permission} actor` case, but since workflow contains only one step, `@current_step` does not decrements. We need to modify `reject should erase votes from current and previous step` case slightly:
+```ruby
+subject { Workflow.new([2, 2, 2]) }
+let(:voter) { -> { User.new([VOTE, VOTE, VOTE]) } }
+it('reject should erase votes from current and previous step') do
+  5.times { subject.approve(voter.call) }
+  subject.reject(voter.call)
+  expect { 3.times { subject.approve(voter.call) } }.not_to change(subject, :finished?)
+  expect { subject.approve(voter.call) }.to change(subject, :finished?)
+end
+```
+
+Now, when all Mutants have been killed, mutant happily reports 100% mutation coverage.
+```
+Mutant configuration:
+Matcher:         #<Mutant::Matcher::Config match_expressions: [Workflow]>
+Integration:     Mutant::Integration::Rspec
+Expect Coverage: 100.00%
+Jobs:            8
+Includes:        ["."]
+Requires:        ["version_6/workflow_spec.rb"]
+Subjects:        7
+Mutations:       316
+Results:         316
+Kills:           316
+Alive:           0
+Runtime:         8.57s
+Killtime:        33.80s
+Overhead:        -74.66%
+Mutations/s:     36.89
+Coverage:        100.00%
+Expected:        100.00%
+```
