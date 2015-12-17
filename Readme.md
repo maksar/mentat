@@ -120,7 +120,7 @@ describe Workflow do
 end
 ```
 
-Running spec is successful indeed. Moreover, `simplecov` claims to have **100%** code coverade!
+Running spec is successful indeed. Moreover, `simplecov` claims to have **100%** code coverage!
 ``` java
 ➜  mentat git:(master) rspec version_1/workflow_spec.rb
 
@@ -145,7 +145,7 @@ This is where story might end for mediocre developer. One would think, that sinc
 
 [![asciicast](https://asciinema.org/a/31217.png)](https://asciinema.org/a/31217)
 
-What? Only **64.71%**? It sounds very... sobering. Lets see what just happened. We specified mutation target (`'Workflow'` string in the command line), mutant detected 7 mutation subjects (methods) in that class. For each subject, its constructed [AST](https://en.wikipedia.org/wiki/Abstract_syntax_tree) (Abstract Syntax Tree) of the code and tried to apply different *mutations* to it. Mutations are small code changes, for example: flipping condition to opposite, removing whole line of code, changing constant value, etc. Mutations are easier to deal with working with AST instead of plain text, thats why mutant parses your code, applies mutation (new Mutant is born) and then converts AST back to code, to let `rspec` execute tests agains it (attempt to kill the Mutant). If all tests are passed, Mutant remains alive. Think about it: someone just deleted whole line from your code, and tests are still passing... That basically means, that test suite does not contain enough examples to cover all execution branches.
+What? Only **64.71%**? It sounds very... sobering. Lets see what just happened. We specified mutation target (`'Workflow'` string in the command line), mutant detected 7 mutation subjects (methods) in that class. For each subject, its constructed [AST](https://en.wikipedia.org/wiki/Abstract_syntax_tree) (Abstract Syntax Tree) of the code and tried to apply different *mutations* to it. Mutations are small code changes, for example: flipping condition to opposite, removing whole line of code, changing constant value, etc. Mutations are easier to deal with working with AST instead of plain text, thats why mutant parses your code, applies mutation (new Mutant is born) and then converts AST back to code and inserts it into your VM, to let `rspec` execute tests agains it (attempt to kill the Mutant). If all tests are passed, Mutant remains alive. Think about it: someone just deleted whole line from your code, and tests are still passing... That basically means, that test suite does not contain enough examples to cover all execution branches.
 
 On the screenshot above, mutant claims, that if we'd removed condition check inside `vote` method, tests will continue to work. Hard to believe? Lets verify:
 
@@ -456,8 +456,10 @@ Expected:        100.00%
 
 ## Conclusion
 
-I want to be clear here, **100%** mutation coverage does not mean your code implements business feature correctly, it is also does not mean you have correctly satisfies your test cases. All it means is: as far as mutant can tell, your test suite has very good branch coverage.
+Traditional coverage tools only highlights code which was executed by running test suite. Lets make little thought experiment: squint for a second, blink twice and imagine all assertion checks from your test suite have just disappeared. Will that affect coverage?.. Its very refreshing to realize its not. Further more, even having full branch coverage does not guarantee, you are safe. See [here](http://pitest.org/weak_tests/) for examples. Ask yourself a very simple question: are you still sure, that test suite you have is actually able to detect failures in the code?
+
+Besides branch coverage, mutation testing is intended to ensure, that code is *meaningfully* tested, giving your test suite powers to weed broken code out. However, no formal guarantees can be given, its a **way** to perfection, ideal itself.
 
 As a tool, mutant can be used for many tasks: as a guide to write better tests (it highlights code paths which were never executed), it can highlight tests, which are not contributing anymore into branch coverage (deleting such test will still show **100%** mutation coverage).
 
-I am personally don't always use mutant in my day-to-day development job, and I'm not convincing you must. But it helps to better understand and improve your code and coding skills in general. Just give it a try some time in future.
+I am personally don't always use mutant in my day-to-day development job, and I'm not convincing you must. But it helps to better understand and improve your code and coding skills in general. Explore different mutation operators mutant applied to your code [here](https://github.com/mbj/mutant/tree/master/meta) and give it a try some time in future.
