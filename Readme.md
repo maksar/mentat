@@ -2,7 +2,7 @@
 
 Mutants, zombies... Yes, there is an inconsistency between the article's topic and image to attract attention. But I swear to god it is actually the poster hanging on the wall inside my flat.
 
-![](https://www.dropbox.com/s/1d2gv5fzawo2ovx/keep_calm.png?raw=1)
+![](/images/keep_calm.png?raw=true)
 
 The topic of this article is mutation testing – a very special methodology among others in the field of testing software quality. It is capable to amaze, make you think you lost your mind and, finally, can bring peace into your programmer's soul. I know, the definition sounds quite bold and pretentious, but I hope that after reading the rest of the article you'll be convinced just like I am.
 
@@ -45,7 +45,7 @@ Enough with theory, as programmers we love to get our hands dirty and see some c
 
 > Workflow consists of many steps, each of which is configured with a threshold value. To proceed to the next step of the workflow, it's necessary to get the number of votes from applicable (according to the voting permissions) users. If a user has enough permissions, it's possible for him to force skip one workflow step. Every user with at least a voting permission can reject the current step of the voting process. Workflow will continue from the beginning of previous step. Inactive users cannot vote or reject. A user can only vote once on the same step.
 
-![](https://www.dropbox.com/s/rr84ft8da055shs/animation.gif?raw=1)
+![](/images/animation.gif?raw=true)
 
 Here is one possible implementation of the described workflow:
 
@@ -134,7 +134,7 @@ Finished in 0.00181 seconds (files took 0.13433 seconds to load)
 Coverage report generated for RSpec to /Users/maksar/projects/mentat/coverage. 40 / 40 LOC (100.0%) covered.
 ```
 
-![](https://www.dropbox.com/s/yysc4rha2h08jy1/coverage.png?raw=1)
+![](/images/coverage.png?raw=true)
 
 ## Mutation testing
 
