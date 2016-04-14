@@ -358,11 +358,11 @@ Better results: **92.95%** What's next?
  end
 ```
 
-Surprising again. I'm convinced I can fully rely on mutant now and will not try to double-check it once again. It looks like we did not check the case where somebody attempts to work with finished workflow, which forces `@current_step` variable to increase and `@current_step == @steps_config.size` invariant does not work anymore. Introducing new test and fixing code:
+Surprising again. I'm convinced I can fully rely on mutant now and will not try to double-check it once again. It looks like we did not check the case where somebody attempts to work with finished workflow, which forces `@current_step` variable to increase and `@current_step == @steps_config.size` invariant does not work anymore. Introducing new test and fixed code:
 
 ``` ruby
 subject { Workflow.new([2]) }
-it('finished workflow should react on actions') do
+it('finished workflow not should react on actions') do
   expect { subject.approve(User.new([FORCE])) }.to change(subject, :finished?).from(false).to(true)
   expect { subject.approve(User.new([FORCE, FORCE])) }.not_to change(subject, :finished?)
   expect { subject.reject(User.new([FORCE, FORCE])) }.not_to change(subject, :finished?)

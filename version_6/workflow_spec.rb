@@ -38,7 +38,7 @@ describe Workflow do
     end
     context 'where step requires two votes' do
       subject { Workflow.new([2]) }
-      it('finished workflow should react on actions') do
+      it('finished workflow should not react on actions') do
         expect { subject.approve(User.new([FORCE])) }.to change(subject, :finished?).from(false).to(true)
         expect { subject.approve(User.new([FORCE, FORCE])) }.not_to change(subject, :finished?)
         expect { subject.reject(User.new([FORCE, FORCE])) }.not_to change(subject, :finished?)
